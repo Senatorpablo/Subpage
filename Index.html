@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SunPay - Your Gateway to Cryptocurrency</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+```
+<script type="text/babel">
+    const { Wallet, CreditCard, TrendingUp, Clock, CheckCircle, XCircle, LogOut, Shield, ArrowUpDown, AlertCircle, Lock, Mail, DollarSign } = lucide;
+
+    // Simulated Backend API
+    class SunPayAPI {
+      constructor() {
+        this.users = [{
+          id: 1, email: 'demo@sunpay.com', password: 'demo123',
+          name: 'Demo User', kycStatus: 'verified', kycLevel: 2,
+          createdAt: '2025-01-01',
+          walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
+          totalSpent: 15420, totalTransactions: 23
+        }];
+        this.transactions = [
+          { id: 1, userId: 1, type: 'buy', crypto: 'BTC', amount: 0.025, fiatAmount: 1250, fiatCurrency: 'USD', status: 'completed', paymentMethod: 'credit_card', fee: 12.50, date: '2026-01-24T10:30:00Z', txHash: '0x1a2b3c4d5e6f...' },
+          { id: 2, userId: 1, type: 'buy', crypto: 'ETH', amount: 0.5, fiatAmount: 850, fiatCurrency: 'USD', status: 'completed', paymentMethod: 'bank_transfer', fee: 8.50, date: '2026-01-23T15:45:00Z', txHash: '0x9f8e7d6c5b4a...' },
+          { id: 3, userId: 1, type: 'buy', crypto: 'SOL', amount: 10, fiatAmount: 500, fiatCurrency: 'USD', status: 'processing', paymentMethod: 'credit_card', fee: 5.00, date: '2026-01-25T08:20:00Z', txHash: null },
+          { id: 4, userId: 1, type: 'sell', crypto: 'BTC', amount: 0.01, fiatAmount: 500, fiatCurrency: 'USD', status: 'completed', paymentMethod: 'bank_transfer', fee: 5.00, date: '2026-01-22T12:00:00Z', txHash: '0x5a6b7c8d9e0f...' },
+        ];
+        this.cryptoPrices = {
+          BTC: 50000, ETH: 1700, SOL: 50, USDT: 1, USDC: 1,
+          BNB: 320, ADA: 0.45, XRP: 0.52, DOGE: 0.08, MATIC: 0.75
+        };
+      }
+
+      login(email, password) {
+        const user = this.users.find(u => u.email === email && u.password === password);
+        if (user) {
+          const { password, ...userWithoutPassword } = user;
+          return { success: true, user: userWithoutPassword };
+        }
+        return { success: false, error: 'Invalid credentials' };
+      }
+
+      getTransactions(userId, filters = {}) {
+        let txs = this.transactions.filter(t => t.userId === userId);
+        if (filters.status) txs = txs.filter(t => t.status === filters.status);
+        return txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+
+      createTransaction(userId, txData) {
+        const newTx = {
+          id: this.transactions.length + 1,
+          userId, ...txData, status: 'processing',
+          date: new Date().toISOString(), txHash: null
+        };
+        this.transactions.unshift(newTx);
+        setTimeout(() => {
+          newTx.status = 'completed';
+          newTx.txHash = '0x' + Math.random().toString(16).substr(2, 16) + '...';
+        }, 3000);
+        return { success: true, transaction: newTx };
+      }
+
+      getCryptoPrices() { return this.cryptoPrices; }
+
+      updateKYC(userId) {
+        const user = this.users.find(u => u.id === userId);
+        if (user) {
+          user.kycStatus = 'pending';
+          setTimeout(() => {
+            user.kycStatus = 'verified';
+            user.kycLevel = 2;
+          }, 5000);
+          return { success: true };
+        }
+        return { success: false };
+      }
+    }
+
+    const api = new SunPayAPI();
+
+    const SunPay = () => {
+      const [currentUser, setCurrentUser] = React.useState(null);
+      const [activeView, setActiveView] = React.useState('login');
+      const [activeTab, setActiveTab] = React.useState('buy');
+      const [email, setEmail] = React.useState('demo@sunpay.com');
+      const [password, setPassword] = React.useState('demo123');
+      const [loginError, setLoginError] = React.useState('');
+      const [selectedCrypto, setSelectedCrypto] = React.useState('BTC');
+      const [fiatAmount, setFiatAmount] = React.useState('');
+      const [paymentMethod, setPaymentMethod] = React.useState('credit_card');
+      const [transactions, setTransactions] = React.useState([]);
+      const [txFilters, setTxFilters] = React.useState({});
+      const [kycStep, setKycStep] = React.useState(1);
+      const [kycData, setKycData] = React.useState({
+        firstName: '', lastName: '', dateOfBirth: '', country: '',
+        address: '', city: '', zipCode: '', phoneNumber: ''
+      });
+
+      const cryptos = [
+        { symbol: 'BTC', name: 'Bitcoin', icon: '₿' },
+        { symbol: 'ETH', name: 'Ethereum', icon: 'Ξ' },
+        { symbol: 'SOL', name: 'Solana', icon: '◎' },
+        { symbol: 'USDT', name: 'Tether', icon: '₮' },
+        { symbol: 'USDC', name: 'USD Coin', icon: '$' },
+        { symbol: 'BNB', name: 'BNB', icon: 'B' },
+        { symbol: 'ADA', name: 'Cardano', icon: '₳' },
+        { symbol: 'XRP', name: 'Ripple', icon: 'X' },
+        { symbol: 'DOGE', name: 'Dogecoin', icon: 'Ð' },
+        { symbol: 'MATIC', name: 'Polygon', icon: 'M' },
+      ];
+
+      const prices = api.getCryptoPrices();
+      const cryptoAmount = fiatAmount ? (parseFloat(fiatAmount) / prices[selectedCrypto]).toFixed(8) : '0';
+      const fee = fiatAmount ? (parseFloat(fiatAmount) * 0.01).toFixed(2) : '0';
+
+      React.useEffect(() => {
+        if (currentUser) {
+          setTransactions(api.getTransactions(currentUser.id, txFilters));
+        }
+      }, [currentUser, txFilters]);
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const result = api.login(email, password);
+        if (result.success) {
+          setCurrentUser(result.user);
+          setActiveView('dashboard');
+          setLoginError('');
+        } else {
+          setLoginError(result.error);
+        }
+      };
+
+      const handleBuy = () => {
+        if (!fiatAmount || parseFloat(fiatAmount) <= 0) return;
+        const txData = {
+          type: activeTab, crypto: selectedCrypto,
+          amount: parseFloat(cryptoAmount), fiatAmount: parseFloat(fiatAmount),
+          fiatCurrency: 'USD', paymentMethod, fee: parseFloat(fee)
+        };
+        const result = api.createTransaction(currentUser.id, txData);
+        if (result.success) {
+          setTransactions([result.transaction, ...transactions]);
+          setFiatAmount('');
+          setTimeout(() => {
+            setTransactions(api.getTransactions(currentUser.id, txFilters));
+          }, 3100);
+        }
+      };
+
+      const handleKYCSubmit = () => {
+        api.updateKYC(currentUser.id);
+        setActiveView('dashboard');
+        setTimeout(() => {
+          const updated = api.users.find(u => u.id === currentUser.id);
+          const { password, ...userWithoutPassword } = updated;
+          setCurrentUser(userWithoutPassword);
+        }, 5100);
+      };
+
+      if (!currentUser) {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center p-4">
+            <div className="w-full max-w-md">
+              <div className="text-center mb-8">
+                <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-amber-400 to-orange-500 rounded-3xl mb-4 shadow-xl">
+                  <Wallet className="text-white" size={40} />
+                </div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent mb-2">SunPay</h1>
+                <p className="text-gray-600">Your gateway to cryptocurrency</p>
+              </div>
+              <div className="bg-white rounded-3xl shadow-2xl p-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6">Welcome Back</h2>
+                {loginError && (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 flex items-center gap-3">
+                    <AlertCircle className="text-red-600" size={20} />
+                    <p className="text-sm text-red-600">{loginError}</p>
+                  </div>
+                )}
+                <form onSubmit={handleLogin} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none"
+                        placeholder="you@example.com" required />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Password</label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+                      <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none"
+                        placeholder="••••••••" required />
+                    </div>
+                  </div>
+                  <button type="submit"
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg">
+                    Sign In
+                  </button>
+                </form>
+                <div className="mt-6 p-4 bg-blue-50 rounded-xl">
+                  <p className="text-sm text-blue-800 font-medium mb-1">Demo Credentials:</p>
+                  <p className="text-xs text-blue-600">Email: demo@sunpay.com</p>
+                  <p className="text-xs text-blue-600">Password: demo123</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      if (activeView === 'kyc') {
+        return (
+          <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 p-6">
+            <div className="max-w-3xl mx-auto">
+              <button onClick={() => setActiveView('dashboard')} className="mb-6 text-gray-600 hover:text-gray-800 flex items-center gap-2">
+                ← Back to Dashboard
+              </button>
+              <div className="bg-white rounded-3xl shadow-2xl p-8">
+                <div className="flex items-center gap-4 mb-8">
+                  <div className="bg-orange-100 p-3 rounded-xl"><Shield className="text-orange-600" size={28} /></div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-800">Identity Verification</h2>
+                    <p className="text-gray-600">Complete KYC to increase your limits</p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between mb-8">
+                  {[1, 2, 3].map((step) => (
+                    <div key={step} className="flex items-center flex-1">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
+                        kycStep >= step ? 'bg-orange-500 text-white' : 'bg-gray-200 text-gray-500'
+                      }`}>{step}</div>
+                      {step < 3 && <div className={`flex-1 h-1 mx-2 ${kycStep > step ? 'bg-orange-500' : 'bg-gray-200'}`} />}
+                    </div>
+                  ))}
+                </div>
+                {kycStep === 1 && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-gray-800 mb-4">Personal Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                        <input type="text" value={kycData.firstName} onChange={(e) => setKycData({...kycData, firstName: e.target.value})}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                        <input type="text" value={kycData.lastName} onChange={(e) => setKycData({...kycData, lastName: e.target.value})}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                    </div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth</label>
+                      <input type="date" value={kycData.dateOfBirth} onChange={(e) => setKycData({...kycData, dateOfBirth: e.target.value})}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+                      <input type="tel" value={kycData.phoneNumber} onChange={(e) => setKycData({...kycData, phoneNumber: e.target.value})}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                    <button onClick={() => setKycStep(2)}
+                      className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all mt-6">
+                      Continue
+                    </button>
+                  </div>
+                )}
+                {kycStep === 2 && (
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-lg text-gray-800 mb-4">Address Information</h3>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
+                      <input type="text" value={kycData.country} onChange={(e) => setKycData({...kycData, country: e.target.value})}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                    <div><label className="block text-sm font-medium text-gray-700 mb-2">Street Address</label>
+                      <input type="text" value={kycData.address} onChange={(e) => setKycData({...kycData, address: e.target.value})}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><label className="block text-sm font-medium text-gray-700 mb-2">City</label>
+                        <input type="text" value={kycData.city} onChange={(e) => setKycData({...kycData, city: e.target.value})}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                      <div><label className="block text-sm font-medium text-gray-700 mb-2">Zip Code</label>
+                        <input type="text" value={kycData.zipCode} onChange={(e) => setKycData({...kycData, zipCode: e.target.value})}
+                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none" /></div>
+                    </div>
+                    <div className="flex gap-4 mt-6">
+                      <button onClick={() => setKycStep(1)}
+                        className="flex-1 border-2 border-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:border-gray-300 transition-all">Back</button>
+                      <button onClick={() => setKycStep(3)}
+                        className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all">
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {kycStep === 3 && (
+                  <div className="text-center py-8">
+                    <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <CheckCircle className="text-green-600" size={40} />
+                    </div>
+                    <h3 className="font-semibold text-2xl text-gray-800 mb-4">Ready to Submit</h3>
+                    <p className="text-gray-600 mb-8">Your information will be securely verified. This usually takes 1-2 business days.</p>
+                    <div className="flex gap-4">
+                      <button onClick={() => setKycStep(2)}
+                        className="flex-1 border-2 border-gray-200 text-gray-700 py-3 rounded-xl font-semibold hover:border-gray-300 transition-all">Back</button>
+                      <button onClick={handleKYCSubmit}
+                        className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white py-3 rounded-xl font-semibold hover:from-amber-600 hover:to-orange-600 transition-all">
+                        Submit for Verification
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+          <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-6 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="bg-gradient-to-br from-amber-400 to-orange-500 p-2 rounded-xl">
+                    <Wallet className="text-white" size={28} />
+                  </div>
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">SunPay</h1>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-right hidden md:block">
+                    <p className="text-sm text-gray-500">Welcome back,</p>
+                    <p className="font-semibold text-gray-800">{currentUser.name}</p>
+                  </div>
+                  <button onClick={() => setCurrentUser(null)} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+                    <LogOut className="text-gray-600" size={20} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-500">KYC Status</p>
+                  <Shield className="text-green-600" size={20} />
+                </div>
+                <p className="text-2xl font-bold text-gray-800 capitalize">{currentUser.kycStatus}</p>
+                {currentUser.kycStatus !== 'verified' && (
+                  <button onClick={() => setActiveView('kyc')} className="text-sm text-orange-600 hover:text-orange-700 mt-2">
+                    Complete KYC →
+                  </button>
+                )}
+              </div>
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-500">Total Spent</p>
+                  <DollarSign className="text-blue-600" size={20} />
+                </div>
+                <p className="text-2xl font-bold text-gray-800">${currentUser.totalSpent?.toLocaleString()}</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-500">Transactions</p>
+                  <ArrowUpDown className="text-purple-600" size={20} />
+                </div>
+                <p className="text-2xl font-bold text-gray-800">{currentUser.totalTransactions}</p>
+              </div>
+              <div className="bg-white rounded-2xl shadow-lg p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm text-gray-500">Wallet</p>
+                  <Wallet className="text-orange-600" size={20} />
+                </div>
+                <p className="text-xs font-mono text-gray-600 truncate">{currentUser.walletAddress}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 bg-white rounded-2xl shadow-lg">
+                <div className="border-b border-gray-200">
+                  <div className="flex">
+                    <button onClick={() => setActiveTab('buy')}
+                      className={`flex-1 py-4 px-6 font-semibold transition-colors ${
+                        activeTab === 'buy' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}>Buy Crypto</button>
+                    <button onClick={() => setActiveTab('sell')}
+                      className={`flex-1 py-4 px-6 font-semibold transition-colors ${
+                        activeTab === 'sell' ? 'text-orange-600 border-b-2 border-orange-600' : 'text-gray-500 hover:text-gray-700'
+                      }`}>Sell Crypto</button>
+                  </div>
+                </div>
+                <div className="p-6">
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Select Cryptocurrency</label>
+                    <div className="grid grid-cols-5 gap-2">
+                      {cryptos.map(crypto => (
+                        <button key={crypto.symbol} onClick={() => setSelectedCrypto(crypto.symbol)}
+                          className={`p-3 rounded-xl border-2 transition-all ${
+                            selectedCrypto === crypto.symbol ? 'border-orange-500 bg-orange-50 shadow-md' : 'border-gray-200 hover:border-gray-300'
+                          }`}>
+                          <div className="text-center">
+                            <p className="text-xl mb-1">{crypto.icon}</p>
+                            <p className="text-xs font-semibold text-gray-800">{crypto.symbol}</p>
+                            <p className="text-xs text-gray-500">${prices[crypto.symbol]?.toLocaleString()}</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">You {activeTab === 'buy' ? 'Pay' : 'Sell'} (USD)</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 text-lg">$</span>
+                      <input type="number" value={fiatAmount} onChange={(e) => setFiatAmount(e.target.value)} placeholder="0.00"
+                        className="w-full pl-8 pr-4 py-4 border-2 border-gray-200 rounded-xl text-lg focus:border-orange-500 focus:outline-none" />
+                    </div>
+                  </div>
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={() => setPaymentMethod('credit_card')}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                          paymentMethod === 'credit_card' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <CreditCard className="mx-auto mb-2 text-gray-700" size={24} />
+                        <p className="text-sm font-semibold text-gray-800">Credit Card</p>
+                        <p className="text-xs text-gray-500">1% fee</p>
+                      </button>
+                      <button onClick={() => setPaymentMethod('bank_transfer')}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                          paymentMethod === 'bank_transfer' ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-300'
+                        }`}>
+                        <DollarSign className="mx-auto mb-2 text-gray-700" size={24} />
+                        <p className="text-sm font-semibold text-gray-800">Bank Transfer</p>
+                        <p className="text-xs text-gray-500">0.5% fee</p>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-gray-600">You {activeTab === 'buy' ?
+```
