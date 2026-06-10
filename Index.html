@@ -12,6 +12,9 @@
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
 </head>
 <body>
+    <div style="background:#dc2626;color:white;text-align:center;padding:8px 16px;font-size:13px;font-weight:600;font-family:sans-serif;">
+      ⚠️ DEMO PROTOTYPE — Not a real financial service. No real transactions or data storage.
+    </div>
     <div id="root"></div>
 
 ```
@@ -22,7 +25,7 @@
     class SunPayAPI {
       constructor() {
         this.users = [{
-          id: 1, email: 'demo@sunpay.com', password: 'demo123',
+          id: 1, email: 'demo@sunpay.com', password: 'demo',
           name: 'Demo User', kycStatus: 'verified', kycLevel: 2,
           createdAt: '2025-01-01',
           walletAddress: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',
@@ -92,7 +95,7 @@
       const [activeView, setActiveView] = React.useState('login');
       const [activeTab, setActiveTab] = React.useState('buy');
       const [email, setEmail] = React.useState('demo@sunpay.com');
-      const [password, setPassword] = React.useState('demo123');
+      const [password, setPassword] = React.useState('demo');
       const [loginError, setLoginError] = React.useState('');
       const [selectedCrypto, setSelectedCrypto] = React.useState('BTC');
       const [fiatAmount, setFiatAmount] = React.useState('');
@@ -210,10 +213,9 @@
                     Sign In
                   </button>
                 </form>
-                <div className="mt-6 p-4 bg-blue-50 rounded-xl">
-                  <p className="text-sm text-blue-800 font-medium mb-1">Demo Credentials:</p>
-                  <p className="text-xs text-blue-600">Email: demo@sunpay.com</p>
-                  <p className="text-xs text-blue-600">Password: demo123</p>
+                <div class="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-xl">
+                  <p class="text-sm text-yellow-800 font-medium mb-1">⚠️ Demo Environment Only</p>
+                  <p class="text-xs text-yellow-700">This is a UI prototype with no real backend. Sign in with: <strong>demo@sunpay.com</strong></p>
                 </div>
               </div>
             </div>
@@ -441,5 +443,79 @@
                   </div>
                   <div className="bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl p-6 mb-6">
                     <div className="flex justify-between items-center mb-4">
-                      <span className="text-gray-600">You {activeTab === 'buy' ?
+                      <span className="text-gray-600">You {activeTab === 'buy' ? 'receive' : 'pay'}</span>
+                      <span className="font-bold text-xl text-gray-800">{cryptoAmount} {selectedCrypto}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">Rate</span>
+                      <span className="text-gray-800">1 {selectedCrypto} = ${prices[selectedCrypto]?.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-gray-600">Fee (1%)</span>
+                      <span className="text-gray-800">${fee}</span>
+                    </div>
+                    <div className="border-t border-orange-200 pt-2 mt-2 flex justify-between items-center">
+                      <span className="font-semibold text-gray-800">Total</span>
+                      <span className="font-bold text-gray-800">${fiatAmount ? (parseFloat(fiatAmount) + parseFloat(fee)).toFixed(2) : '0.00'}</span>
+                    </div>
+                  </div>
+                  <button onClick={handleBuy}
+                    className="w-full bg-gradient-to-r from-amber-500 to-orange-500 text-white py-4 rounded-xl font-bold text-lg hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg">
+                    {activeTab === 'buy' ? 'Buy' : 'Sell'} {selectedCrypto}
+                  </button>
+                </div>
+              </div>
+              <div className="bg-white rounded-2xl shadow-lg">
+                <div className="p-6 border-b border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-800">Transaction History</h3>
+                    <Clock className="text-gray-500" size={20} />
+                  </div>
+                  <select onChange={(e) => setTxFilters(e.target.value ? { status: e.target.value } : {})}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-orange-500">
+                    <option value="">All Transactions</option>
+                    <option value="completed">Completed</option>
+                    <option value="processing">Processing</option>
+                    <option value="failed">Failed</option>
+                  </select>
+                </div>
+                <div className="divide-y divide-gray-100 max-h-96 overflow-y-auto">
+                  {transactions.map(tx => (
+                    <div key={tx.id} className="p-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          {tx.status === 'completed' ? <CheckCircle className="text-green-500" size={16} /> :
+                           tx.status === 'processing' ? <Clock className="text-yellow-500" size={16} /> :
+                           <XCircle className="text-red-500" size={16} />}
+                          <span className="font-semibold text-sm text-gray-800 capitalize">{tx.type} {tx.crypto}</span>
+                        </div>
+                        <span className={`text-sm font-semibold ${
+                          tx.type === 'buy' ? 'text-red-600' : 'text-green-600'
+                        }`}>{tx.type === 'buy' ? '-' : '+'}${tx.fiatAmount}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-500">{new Date(tx.date).toLocaleDateString()}</span>
+                        <span className="text-xs text-gray-500">{tx.amount} {tx.crypto}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {transactions.length === 0 && (
+                    <div className="p-8 text-center text-gray-500">
+                      <Clock size={32} className="mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No transactions yet</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<SunPay />);
+</script>
 ```
+</body>
+</html>
